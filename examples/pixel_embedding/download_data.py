@@ -21,6 +21,10 @@ runs = Run.find(client, query_filters=[Run.dataset.id == 10000])
 
 for run in tqdm(runs, desc="Runs"):
     dataset_name = run.name
+    # make a folder for the annotations
+    tomo_annotations_directory = os.path.join(
+        annotations_directory, dataset_name
+    )
     for voxel_spacing in tqdm(
         run.tomogram_voxel_spacings, desc="Voxel Spacings"
     ):
@@ -28,12 +32,17 @@ for run in tqdm(runs, desc="Runs"):
             # download the tomogram
             tomo.download_mrcfile(image_directory)
 
-            # make a folder for the annotations
-            tomo_annotations_directory = os.path.join(
-                annotations_directory, dataset_name
-            )
+            # This downloads all segmentation masks and .json files,
+            # but not the .ndjson files containing point annotations
             tomo.download_all_annotations(
                 tomo_annotations_directory,
                 format="mrc",
                 shape="SegmentationMask",
             )
+
+        # Download point annotations
+        for annotation in tqdm(voxel_spacing.annotations, desc="Annotations"):
+            # download the annotation
+            for annotation_file in annotation.files:
+                if annotation_file.shape_type == "OrientedPoint" or annotation_file.shape_type == "Point":
+                    annotation_file.download(tomo_annotations_directory)
